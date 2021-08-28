@@ -4,5 +4,7 @@ project(emscripten-test)
 add_executable(main main.cpp)
 target_compile_features(main PRIVATE cxx_std_17)
 
+set(GLFWPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/glfwpp)
-target_link_libraries(main PRIVATE GLFWPP)
+add_subdirectory(external/imgui)
+target_link_libraries(main PRIVATE GLFWPP Imgui)
