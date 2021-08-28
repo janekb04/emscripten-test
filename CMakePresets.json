@@ -1,0 +1,26 @@
+{
+    "version": 2,
+    "configurePresets": [
+        {
+            "name": "emscripten",
+            "displayName": "Emscripten",
+            "description": "Compiles C and C++ code to WebAssembly using Emscripten",
+            "generator": "MinGW Makefiles",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}build/install/${presetName}",
+                "CMAKE_TOOLCHAIN_FILE": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+                "CMAKE_CROSSCOMPILING_EMULATOR": "$env{EMSDK_NODE}"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "emscripten",
+            "description": "Compiles C and C++ code to WebAssembly using Emscripten",
+            "displayName": "Emscripten",
+            "configurePreset": "emscripten"
+        }
+    ]
+}
