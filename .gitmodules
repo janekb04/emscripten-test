@@ -1,0 +1,9 @@
+[submodule "external/glfwpp"]
+	path = external/glfwpp
+	url = https://github.com/janekb04/glfwpp.git
+[submodule "external/imgui/imgui"]
+	path = external/imgui/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "external/glew-cmake"]
+	path = external/glew-cmake
+	url = https://github.com/Perlmint/glew-cmake.git
