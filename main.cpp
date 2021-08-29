@@ -50,7 +50,16 @@ int main() {
   hints.contextVersionMajor = 4;
   hints.contextVersionMinor = 6;
   hints.apply();
-  glfw::Window wnd(800, 600, "GLFWPP ImGui integration example");
+
+#ifdef __EMSCRIPTEN__
+  const int WND_WIDTH = EM_ASM_INT({ return window.innerWidth; });
+  const int WND_HEIGHT = EM_ASM_INT({ return window.innerHeight; });
+#else
+  const int WND_WIDTH = 800;
+  const int WND_HEIGHT = 600;
+#endif
+
+  glfw::Window wnd(WND_WIDTH, WND_HEIGHT, "GLFWPP ImGui integration example");
   mainWindow = &wnd;
 
   glfw::makeContextCurrent(wnd);
@@ -62,10 +71,6 @@ int main() {
 #endif
 
   initImgui(wnd);
-
-  wnd.keyEvent.setCallback([](glfw::Window &, glfw::KeyCode, int,
-                              glfw::KeyState,
-                              glfw::ModifierKeyBit) { std::cout << "hi"; });
 
   auto mainLoop = []() {
     glClear(GL_COLOR_BUFFER_BIT);
