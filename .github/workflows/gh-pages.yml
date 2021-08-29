@@ -22,7 +22,7 @@ jobs:
           export EMSDK_NODE=$EMSDK../../node/$(ls $EMSDK../../node)
 
       - name: Configure CMake
-        run: cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_CROSSCOMPILING_EMULATOR=$EMSDK_NODE/node -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/build/install -H${{github.workspace}} -B${{github.workspace}}/build -G "MinGW Makefiles"
+        run: cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_CROSSCOMPILING_EMULATOR=$EMSDK_NODE/node -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/build/install -H${{github.workspace}} -B${{github.workspace}}/build -G "Unix Makefiles"
 
       - name: Build
         run: cmake --build ${{github.workspace}}/build
