@@ -1,0 +1,35 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      
+      - uses: mymindstorm/setup-emsdk@v9
+      
+      - name: Add Emscripten Environmental variables
+        run: |
+          export EMSDK=$(which emcc | sed 's:[^/]*$::')
+          export EMSDK_NODE=$EMSDK../../node/$(ls $EMSDK../../node)
+
+      - name: Configure CMake
+        run: cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_CROSSCOMPILING_EMULATOR=$EMSDK_NODE/node -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{github.workspace}}/build/install -H${{github.workspace}} -B${{github.workspace}}/build -G "MinGW Makefiles"
+
+      - name: Build
+        run: cmake --build ${{github.workspace}}/build
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
