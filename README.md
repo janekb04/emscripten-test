@@ -1,3 +1,3 @@
 A small example of how to write a single C++ that can run both natively and in a web browser. Using [CMake presets](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) it can be compiled using GCC, Clang or MSVC to a native executable or using [Emscripten](https://emscripten.org/) to [WebAssembly](https://emscripten.org/docs/compiling/WebAssembly.html#webassembly) to run in a web browser. It supports not only bare C++, but also OpenGL, which it can translate to WebGL. The supported OpenGL subset is OpenGL 4.3 as it is compatible with OpenGL ES 3.0 on which WebGL 2.0 is based.
 
-The repository gets automatically built using a Github Action and gets deployed to Github Pages. The build page is available [here](https://janekb04.github.io/emscripten-test/).
+The repository gets automatically built using a Github Action and gets deployed to Github Pages. The built page is available [here](https://janekb04.github.io/emscripten-test/).
