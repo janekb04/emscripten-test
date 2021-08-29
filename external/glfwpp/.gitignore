@@ -1,6 +1,0 @@
-.idea
-.vs
-out
-cmake-build*
-build
-*.DotSettings.user
