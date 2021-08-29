@@ -12,6 +12,11 @@ target_link_libraries(main PRIVATE GLFWPP Imgui)
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(CMAKE_CXX_LINKER_WRAPPER_FLAG "")
     target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main]")
+    add_custom_command(
+        TARGET main POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+                ${CMAKE_SOURCE_DIR}/index.html
+                ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/index.html)
 else()
     add_subdirectory(external/glew-cmake)
     target_link_libraries(main PRIVATE libglew_static)
