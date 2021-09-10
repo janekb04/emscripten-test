@@ -22,7 +22,7 @@ add_custom_command(
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     set(CMAKE_CXX_LINKER_WRAPPER_FLAG "")
-    target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main] --preload-file ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/res/")
+    target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main]")
     add_custom_command(
         TARGET main POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy
