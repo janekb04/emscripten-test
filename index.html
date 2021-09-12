@@ -14,8 +14,6 @@
             position: absolute;
             top: 0;
             left: 0;
-            height: 100%;
-            width: 100%;
             outline: none;
             background-color: black;
         }
@@ -56,8 +54,20 @@
             Module.printErr("window error: " + event)
         };
         window.addEventListener("resize", function (e) {
-            Module.setCanvasSize(window.innerWidth, window.innerHeight);
+            Module.setCanvasSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
+            document.getElementById('canvas').style.width = window.innerWidth * window.devicePixelRatio;
+            document.getElementById('canvas').style.height = window.innerHeight * window.devicePixelRatio;
         }, true);
+    </script>
+    <script type='text/javascript'>
+        window.addEventListener("load", function () {
+            document.getElementById('canvas').style.transform = "scale(" + 1 / window.devicePixelRatio + ")";
+            document.getElementById('canvas').style.transformOrigin = "0 0";
+
+            Module.setCanvasSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
+            document.getElementById('canvas').style.width = window.innerWidth * window.devicePixelRatio;
+            document.getElementById('canvas').style.height = window.innerHeight * window.devicePixelRatio;
+        });
     </script>
     <script async type="text/javascript" src="main.js"></script>
 </body>
