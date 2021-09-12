@@ -3,6 +3,16 @@
 #else
 #include <emscripten.h>
 #endif
+
+#ifdef _WIN32
+
+#include "windows_swca.h"
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <glfwpp/native.h>
+
+#endif
+
 #include <array>
 #include <filesystem>
 #include <glfwpp/glfwpp.h>
@@ -53,6 +63,133 @@ void initImgui(const glfw::Window &wnd) {
   ImGui_ImplOpenGL3_Init();
 }
 
+class WindowResizer {
+  const int OP_RESIZE_LEFT = 1, OP_RESIZE_TOP = 2, OP_RESIZE_RIGHT = 4,
+            OP_RESIZE_BOTTOM = 8, OP_MOVE = 16;
+  int state;
+  glfw::Window &wnd;
+  const ImGuiWindow *menuBarWindow;
+
+  const int TITLE_BAR_SIZE = 15;
+  const int BORDER_WIDTH = 5;
+  const int MIN_HEIGHT = 20;
+  const int MIN_WIDTH = 20;
+
+public:
+  WindowResizer(glfw::Window &wnd) : state{0}, wnd{wnd} {}
+
+  void next() {
+    // Stop any op if no longer holding mouse
+    if (!wnd.getMouseButton(glfw::MouseButton::Left)) {
+      if (state == OP_MOVE) {
+        state = 0;
+      } else if (state != 0) { // resizing in some way
+        state = 0;
+        // acrylic_swca(glfw::native::getWin32Window(wnd));
+      }
+    }
+
+    const auto [mouse_x, mouse_y] = wnd.getCursorPos();
+    const auto [mouse_dx, mouse_dy] = ImGui::GetMouseDragDelta();
+    const auto [wnd_width, wnd_height] = wnd.getSize();
+
+    // Potentially pick new current state
+    if (!ImGui::IsAnyItemActive() ||
+        ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow) {
+      const int dst_to_left_edge = abs(mouse_x);
+      const int dst_to_right_edge = abs(wnd_width - dst_to_left_edge);
+      const int dst_to_top_edge = abs(mouse_y);
+      const int dst_to_bottom_edge = abs(wnd_height - dst_to_top_edge);
+
+      // When Hovering...
+      if (state == 0) {
+        if (dst_to_left_edge < BORDER_WIDTH) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
+        if (dst_to_right_edge < BORDER_WIDTH) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+        }
+        if (dst_to_bottom_edge < BORDER_WIDTH) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        }
+        if (dst_to_top_edge < BORDER_WIDTH) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        }
+      }
+
+      // When dragging...
+      if (state == 0 && wnd.getMouseButton(glfw::MouseButton::Left)) {
+        const bool on_title_bar = dst_to_top_edge < TITLE_BAR_SIZE;
+        const bool in_drag_location =
+            !ImGui::GetIO().WantCaptureMouse || on_title_bar;
+        if (in_drag_location && ImGui::IsMouseDragging(0)) {
+          state = OP_MOVE;
+        } else {
+          if (dst_to_left_edge < BORDER_WIDTH) {
+            state |= OP_RESIZE_LEFT;
+          }
+          if (dst_to_right_edge < BORDER_WIDTH) {
+            state |= OP_RESIZE_RIGHT;
+          }
+          if (dst_to_bottom_edge < BORDER_WIDTH) {
+            state |= OP_RESIZE_BOTTOM;
+          }
+          if (dst_to_top_edge < BORDER_WIDTH) {
+            state |= OP_RESIZE_TOP;
+          }
+
+          if (state != 0) {
+            // acrylic_swca_disable(glfw::native::getWin32Window(wnd));
+          }
+        }
+      }
+    }
+
+    const auto [wnd_x, wnd_y] = wnd.getPos();
+
+    // Perform current op
+    {
+      if (state == OP_MOVE) {
+        auto [x, y] = wnd.getPos();
+        wnd.setPos(x + mouse_dx, y + mouse_dy);
+      } else {
+        if (state & OP_RESIZE_BOTTOM) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+          const auto new_height = wnd_height + mouse_dy;
+          if (new_height >= MIN_HEIGHT)
+            wnd.setSize(wnd_width, new_height);
+        }
+        if (state & OP_RESIZE_RIGHT) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+          const auto new_width = wnd_width + mouse_dx;
+          if (new_width >= MIN_WIDTH)
+            wnd.setSize(new_width, wnd_height);
+        }
+        if (state & OP_RESIZE_TOP) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+          const auto new_height = wnd_height - mouse_dy;
+          if (new_height >= MIN_HEIGHT)
+            wnd.setSize(wnd_width, new_height);
+          wnd.setPos(wnd_x, wnd_y + mouse_dy);
+        }
+        if (state & OP_RESIZE_LEFT) {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+          const auto new_width = wnd_width - mouse_dx;
+          if (new_width >= MIN_WIDTH)
+            wnd.setSize(new_width, wnd_height);
+          wnd.setPos(wnd_x + mouse_dx, wnd_y);
+        }
+      }
+    }
+
+    if (state != 0)
+      ImGui::ResetMouseDragDelta();
+  }
+
+  void setMenuBarWindow(const ImGuiWindow *wnd) { menuBarWindow = wnd; }
+};
+
+WindowResizer *resizer;
 glfw::Window *mainWindow;
 ImFont *regularFont;
 ImFont *headerFont;
@@ -98,7 +235,7 @@ void setStyle() {
   colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
   colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
   colors[ImGuiCol_DockingPreview] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-  colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+  colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.54f);
   colors[ImGuiCol_PlotLines] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
   colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.77f, 0.91f, 0.99f, 1.00f);
   colors[ImGuiCol_PlotHistogram] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
@@ -147,6 +284,10 @@ int main() {
   hints.clientApi = glfw::ClientApi::OpenGl;
   hints.contextVersionMajor = 4;
   hints.contextVersionMinor = 6;
+#if !defined(__EMSCRIPTEN__) && defined(_WIN32)
+  hints.transparentFramebuffer = true;
+  hints.decorated = false;
+#endif
   hints.apply();
 
 #ifdef __EMSCRIPTEN__
@@ -159,6 +300,8 @@ int main() {
 
   glfw::Window wnd(WND_WIDTH, WND_HEIGHT, "GLFWPP ImGui integration example");
   mainWindow = &wnd;
+  WindowResizer wndResizer{wnd};
+  resizer = &wndResizer;
 
   glfw::makeContextCurrent(wnd);
 
@@ -181,31 +324,35 @@ int main() {
   // #endif
 
   setStyle();
+  auto [r, g, b, a] = ImGui::GetStyleColorVec4(ImGuiCol_DockingEmptyBg);
+  glClearColor(r, g, b, a);
+#ifdef _WIN32
+  acrylic_swca(glfw::native::getWin32Window(wnd));
+#endif
 
   auto mainLoop = []() {
-    glClear(GL_COLOR_BUFFER_BIT);
-
     renderImgui([]() {
-      using namespace ImGui;
-      DockSpaceOverViewport(GetMainViewport());
-      if (BeginMainMenuBar()) {
-        if (BeginMenu("File")) {
-          MenuItem("New", "Ctrl + N");
-          MenuItem("Open", "Ctrl + O");
-          MenuItem("Save", "Ctrl + S");
-          MenuItem("Save As", "Ctrl + Shift + S");
-          Separator();
-          MenuItem("Exit", "Ctrl + Q");
-          EndMenu();
+      glClear(GL_COLOR_BUFFER_BIT);
+      ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(),
+                                   ImGuiDockNodeFlags_PassthruCentralNode);
+      if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+          ImGui::MenuItem("New", "Ctrl + N");
+          ImGui::MenuItem("Open", "Ctrl + O");
+          ImGui::MenuItem("Save", "Ctrl + S");
+          ImGui::MenuItem("Save As", "Ctrl + Shift + S");
+          ImGui::Separator();
+          ImGui::MenuItem("Exit", "Ctrl + Q");
+          ImGui::EndMenu();
         }
-        if (BeginMenu("Edit")) {
-          MenuItem("Undo", "Ctrl + Z");
-          MenuItem("Redo", "Ctrl + Y");
-          Separator();
-          MenuItem("Cut", "Ctrl + X");
-          MenuItem("Copy", "Ctrl + C");
-          MenuItem("Paste", "Ctrl + V");
-          EndMenu();
+        if (ImGui::BeginMenu("Edit")) {
+          ImGui::MenuItem("Undo", "Ctrl + Z");
+          ImGui::MenuItem("Redo", "Ctrl + Y");
+          ImGui::Separator();
+          ImGui::MenuItem("Cut", "Ctrl + X");
+          ImGui::MenuItem("Copy", "Ctrl + C");
+          ImGui::MenuItem("Paste", "Ctrl + V");
+          ImGui::EndMenu();
         }
 
         {
@@ -284,8 +431,59 @@ int main() {
           }
         }
 
-        EndMainMenuBar();
+        {
+          static bool freezeButtons = false;
+
+          if (freezeButtons) {
+            freezeButtons = false;
+          } else {
+            const float ItemSpacing = 0;
+
+            static float HostButtonWidth = 100.0f;
+            float pos = HostButtonWidth + ItemSpacing + 5;
+            // ImGui::PushStyleColor(ImGuiColactive_)
+            ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+            if (ImGui::BeginMenu("X")) {
+              ImGui::EndMenu();
+              mainWindow->setShouldClose(true);
+              freezeButtons = true;
+            }
+            HostButtonWidth = ImGui::GetItemRectSize().x;
+
+            static float ClientButtonWidth = 100.0f;
+            pos += ClientButtonWidth + ItemSpacing;
+            ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+            if (ImGui::BeginMenu("[  ]")) {
+              ImGui::EndMenu();
+              static bool maximized = false;
+              if (maximized) {
+                mainWindow->restore();
+                maximized = false;
+              } else {
+                mainWindow->maximize();
+                maximized = true;
+              }
+              freezeButtons = true;
+            }
+            ClientButtonWidth = ImGui::GetItemRectSize().x;
+
+            static float LocalButtonWidth = 100.0f;
+            pos += LocalButtonWidth + ItemSpacing;
+            ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+            if (ImGui::BeginMenu("-")) {
+              ImGui::EndMenu();
+              mainWindow->iconify();
+              freezeButtons = true;
+            }
+            LocalButtonWidth = ImGui::GetItemRectSize().x;
+          }
+        }
+
+        resizer->setMenuBarWindow(ImGui::GetCurrentWindowRead());
+        ImGui::EndMainMenuBar();
       }
+
+      resizer->next();
 
       ImGuiViewportP *viewport =
           (ImGuiViewportP *)(void *)ImGui::GetMainViewport();
@@ -315,7 +513,6 @@ int main() {
       if (ImGui::BeginViewportSideBar(
               "##LeftSidebar", viewport, ImGuiDir_Left, 35,
               window_flags ^ ImGuiWindowFlags_MenuBar)) {
-
         ImGui::SetCursorPosY(ImGui::GetWindowSize().y / 2);
         ImGui::SmallButton("X");
         ImGui::SmallButton("Y");
@@ -325,7 +522,7 @@ int main() {
         ImGui::End();
       }
 
-      ShowDemoWindow();
+      ImGui::ShowDemoWindow();
     });
 
     glfw::pollEvents();
