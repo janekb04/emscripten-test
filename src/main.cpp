@@ -95,8 +95,9 @@ public:
     const auto [wnd_width, wnd_height] = wnd.getSize();
 
     // Potentially pick new current state
-    if (!ImGui::IsAnyItemActive() ||
-        ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow) {
+    if ((!ImGui::IsAnyItemActive() ||
+         ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow) &&
+        !wnd.getAttribMaximized()) {
       const int dst_to_left_edge = abs(mouse_x);
       const int dst_to_right_edge = abs(wnd_width - dst_to_left_edge);
       const int dst_to_top_edge = abs(mouse_y);
