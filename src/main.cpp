@@ -3,11 +3,13 @@
 #else
 #include <emscripten.h>
 #endif
+#include <array>
 #include <filesystem>
 #include <glfwpp/glfwpp.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
 #include <iostream>
 
 void cleanupImgui() {
@@ -25,6 +27,13 @@ template <typename Func> void renderImgui(Func &&guiRenderFunc_) {
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+  if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+    glfw::Window &backupCurrentContext = glfw::getCurrentContext();
+    ImGui::UpdatePlatformWindows();
+    ImGui::RenderPlatformWindowsDefault();
+    glfw::makeContextCurrent(backupCurrentContext);
+  }
 }
 
 void initImgui(const glfw::Window &wnd) {
@@ -34,6 +43,9 @@ void initImgui(const glfw::Window &wnd) {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+#ifndef __EMSCRIPTEN__
+  io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+#endif
 
   ImGuiStyle &style = ImGui::GetStyle();
 
@@ -86,11 +98,11 @@ void setStyle() {
   colors[ImGuiCol_TabUnfocused] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
   colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
   colors[ImGuiCol_DockingPreview] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-  colors[ImGuiCol_DockingEmptyBg] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-  colors[ImGuiCol_PlotLines] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-  colors[ImGuiCol_PlotLinesHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-  colors[ImGuiCol_PlotHistogram] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-  colors[ImGuiCol_PlotHistogramHovered] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
+  colors[ImGuiCol_DockingEmptyBg] = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
+  colors[ImGuiCol_PlotLines] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+  colors[ImGuiCol_PlotLinesHovered] = ImVec4(0.77f, 0.91f, 0.99f, 1.00f);
+  colors[ImGuiCol_PlotHistogram] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+  colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.77f, 0.91f, 0.99f, 1.00f);
   colors[ImGuiCol_TableHeaderBg] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
   colors[ImGuiCol_TableBorderStrong] = ImVec4(0.00f, 0.00f, 0.00f, 0.52f);
   colors[ImGuiCol_TableBorderLight] = ImVec4(0.28f, 0.28f, 0.28f, 0.29f);
@@ -98,8 +110,8 @@ void setStyle() {
   colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
   colors[ImGuiCol_TextSelectedBg] = ImVec4(0.20f, 0.22f, 0.23f, 1.00f);
   colors[ImGuiCol_DragDropTarget] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
-  colors[ImGuiCol_NavHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 1.00f);
-  colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.00f, 0.00f, 0.00f, 0.70f);
+  colors[ImGuiCol_NavHighlight] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
+  colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
   colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
   colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
 
@@ -118,14 +130,14 @@ void setStyle() {
   style.PopupBorderSize = 1;
   style.FrameBorderSize = 1;
   style.TabBorderSize = 1;
-  style.WindowRounding = 7;
-  style.ChildRounding = 4;
-  style.FrameRounding = 3;
-  style.PopupRounding = 4;
-  style.ScrollbarRounding = 9;
-  style.GrabRounding = 3;
-  style.LogSliderDeadzone = 4;
-  style.TabRounding = 4;
+  style.WindowRounding = 0;
+  style.ChildRounding = 0;
+  style.FrameRounding = 0;
+  style.PopupRounding = 0;
+  style.ScrollbarRounding = 0;
+  style.GrabRounding = 0;
+  style.LogSliderDeadzone = 0;
+  style.TabRounding = 0;
 }
 
 int main() {
@@ -158,15 +170,163 @@ int main() {
 
   initImgui(wnd);
 
-  // ImGuiIO &io = ImGui::GetIO();
-  // regularFont = io.Fonts->AddFontFromFileTTF("Roboto-Regular.ttf", 16);
-  // headerFont = io.Fonts->AddFontFromFileTTF("Roboto-Regular.ttf", 24);
+  // #ifndef __EMSCRIPTEN__
+  //   ImGuiIO &io = ImGui::GetIO();
+  //   regularFont =
+  //       io.Fonts->AddFontFromFileTTF("res/Inter-VariableFont_slnt,wght.ttf",
+  //       14);
+  //   headerFont =
+  //       io.Fonts->AddFontFromFileTTF("res/Inter-VariableFont_slnt,wght.ttf",
+  //       24);
+  // #endif
+
   setStyle();
 
   auto mainLoop = []() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    renderImgui([]() { ImGui::ShowDemoWindow(); });
+    renderImgui([]() {
+      using namespace ImGui;
+      DockSpaceOverViewport(GetMainViewport());
+      if (BeginMainMenuBar()) {
+        if (BeginMenu("File")) {
+          MenuItem("New", "Ctrl + N");
+          MenuItem("Open", "Ctrl + O");
+          MenuItem("Save", "Ctrl + S");
+          MenuItem("Save As", "Ctrl + Shift + S");
+          Separator();
+          MenuItem("Exit", "Ctrl + Q");
+          EndMenu();
+        }
+        if (BeginMenu("Edit")) {
+          MenuItem("Undo", "Ctrl + Z");
+          MenuItem("Redo", "Ctrl + Y");
+          Separator();
+          MenuItem("Cut", "Ctrl + X");
+          MenuItem("Copy", "Ctrl + C");
+          MenuItem("Paste", "Ctrl + V");
+          EndMenu();
+        }
+
+        {
+          struct options_t {
+            int select_idx = 0;
+            std::array<const char *, 4> optionList = {"Hello", "World", "Test",
+                                                      "Hi"};
+          };
+          static options_t options;
+          static char currentText[255];
+
+          auto inputCallback = [](ImGuiInputTextCallbackData *data) {
+            options_t &options = *reinterpret_cast<options_t *>(data->UserData);
+            if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion) {
+              data->InsertChars(
+                  data->CursorPos,
+                  std::data(options.optionList)[options.select_idx]);
+              data->InsertChars(data->CursorPos, " ");
+            } else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
+              if (data->EventKey == ImGuiKey_UpArrow) {
+                --options.select_idx;
+              } else if (data->EventKey == ImGuiKey_DownArrow) {
+                ++options.select_idx;
+              }
+              options.select_idx += options.optionList.size();
+              options.select_idx %= options.optionList.size();
+            } else if (data->EventFlag == ImGuiInputTextFlags_CallbackEdit) {
+              // Toggle casing of first character
+              char c = data->Buf[0];
+              if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+                data->Buf[0] ^= 32;
+              data->BufDirty = true;
+
+              // Increment a counter
+              int *p_int = (int *)data->UserData;
+              *p_int = *p_int + 1;
+            }
+            return 0;
+          };
+
+          ImGui::InputTextWithHint("##searchText", "Run command...",
+                                   &currentText[0], 255,
+                                   ImGuiInputTextFlags_CallbackCompletion |
+                                       ImGuiInputTextFlags_CallbackHistory,
+                                   inputCallback, &options);
+
+          auto textInputState = ImGui::GetInputTextState(ImGui::GetItemID());
+          ImVec2 textPos{ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y};
+
+          static bool popup_focused_last_frame = false;
+          if (ImGui::IsItemActive() || popup_focused_last_frame) {
+            popup_focused_last_frame = false;
+            ImGui::OpenPopup("##SearchBar");
+
+            ImGui::SetNextWindowPos(
+                ImVec2{ImGui::GetCurrentContext()->PlatformImePos.x,
+                       ImGui::GetItemRectMax().y},
+                ImGuiCond_Always);
+
+            if (ImGui::BeginPopup("##SearchBar",
+                                  ImGuiWindowFlags_ChildWindow |
+                                      ImGuiWindowFlags_NoNavInputs)) {
+              int i = 0;
+              ImGui::PushAllowKeyboardFocus(false);
+              for (auto &&option : options.optionList) {
+                if (ImGui::Selectable(option, options.select_idx == i,
+                                      ImGuiSelectableFlags_DontClosePopups)) {
+                }
+
+                ++i;
+              }
+              ImGui::PopAllowKeyboardFocus();
+            }
+
+            ImGui::EndPopup();
+          }
+        }
+
+        EndMainMenuBar();
+      }
+
+      ImGuiViewportP *viewport =
+          (ImGuiViewportP *)(void *)ImGui::GetMainViewport();
+      ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar |
+                                      ImGuiWindowFlags_NoSavedSettings |
+                                      ImGuiWindowFlags_MenuBar;
+      float height = ImGui::GetFrameHeight();
+
+      if (ImGui::BeginViewportSideBar("##SecondaryMenuBar", viewport,
+                                      ImGuiDir_Up, height, window_flags)) {
+        if (ImGui::BeginMenuBar()) {
+          ImGui::Text("0 Errors; 0 Warnings; 0 Messages;");
+          ImGui::EndMenuBar();
+        }
+        ImGui::End();
+      }
+
+      if (ImGui::BeginViewportSideBar("##MainStatusBar", viewport,
+                                      ImGuiDir_Down, height, window_flags)) {
+        if (ImGui::BeginMenuBar()) {
+          ImGui::Text("Status: all green");
+          ImGui::EndMenuBar();
+        }
+        ImGui::End();
+      }
+
+      if (ImGui::BeginViewportSideBar(
+              "##LeftSidebar", viewport, ImGuiDir_Left, 35,
+              window_flags ^ ImGuiWindowFlags_MenuBar)) {
+
+        ImGui::SetCursorPosY(ImGui::GetWindowSize().y / 2);
+        ImGui::SmallButton("X");
+        ImGui::SmallButton("Y");
+        ImGui::SmallButton("Z");
+        ImGui::SmallButton("W");
+
+        ImGui::End();
+      }
+
+      ShowDemoWindow();
+    });
 
     glfw::pollEvents();
     mainWindow->swapBuffers();
