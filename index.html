@@ -10,6 +10,12 @@
         content="viewport-fit=cover, user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
     <title>Emscripten-Generated Code</title>
     <style>
+        body,
+        html {
+            background-color: black;
+            position: fixed;
+        }
+
         canvas {
             position: absolute;
             top: 0;
@@ -68,6 +74,8 @@
             document.getElementById('canvas').style.width = window.innerWidth * window.devicePixelRatio;
             document.getElementById('canvas').style.height = window.innerHeight * window.devicePixelRatio;
         });
+
+        document.body.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
     </script>
     <script async type="text/javascript" src="main.js"></script>
 </body>
