@@ -21,6 +21,8 @@ add_custom_command(
                 ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/res)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_compile_definitions(main PRIVATE "__EMSCRIPTEN__")
+
     set(CMAKE_CXX_LINKER_WRAPPER_FLAG "")
     target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main]")
     add_custom_command(
