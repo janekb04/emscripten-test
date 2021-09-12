@@ -31,8 +31,8 @@ void cleanupImgui() {
 }
 
 template <typename Func> void renderImgui(Func &&guiRenderFunc_) {
-  ImGui_ImplOpenGL3_NewFrame();
   ImGui_ImplGlfw_NewFrame();
+  ImGui_ImplOpenGL3_NewFrame();
   ImGui::NewFrame();
 
   guiRenderFunc_();
@@ -195,10 +195,8 @@ public:
 
 WindowResizer *resizer;
 glfw::Window *mainWindow;
-ImFont *regularFont;
-ImFont *headerFont;
 
-void setStyle() {
+void setStyle(float dpi) {
   ImVec4 *colors = ImGui::GetStyle().Colors;
   colors[ImGuiCol_Text] = ImVec4(0.78f, 0.80f, 0.81f, 1.00f);
   colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
@@ -279,6 +277,16 @@ void setStyle() {
   style.GrabRounding = 0;
   style.LogSliderDeadzone = 0;
   style.TabRounding = 0;
+
+  style.ScaleAllSizes(dpi);
+}
+void setDPI(float dpi) {
+  auto &&io = ImGui::GetIO();
+  io.Fonts->Clear();
+  io.Fonts->AddFontFromFileTTF("./res/Inter-VariableFont_slnt,wght.ttf",
+                               int(14 * dpi));
+  ImGui_ImplOpenGL3_CreateFontsTexture();
+  setStyle(dpi);
 }
 
 int main(int argc, char **argv) {
@@ -322,13 +330,11 @@ int main(int argc, char **argv) {
 
   initImgui(wnd);
 
-  ImGuiIO &io = ImGui::GetIO();
-  regularFont = io.Fonts->AddFontFromFileTTF(
-      "./res/Inter-VariableFont_slnt,wght.ttf", 14);
-  headerFont = io.Fonts->AddFontFromFileTTF(
-      "./res/Inter-VariableFont_slnt,wght.ttf", 24);
+  setDPI(std::get<0>(wnd.getContentScale()));
 
-  setStyle();
+  wnd.contentScaleEvent.setCallback(
+      [](const glfw::Window &, float dpi, float) { setDPI(dpi); });
+
   auto [r, g, b, a] = ImGui::GetStyleColorVec4(ImGuiCol_DockingEmptyBg);
   glClearColor(r, g, b, a);
 #ifdef _WIN32
