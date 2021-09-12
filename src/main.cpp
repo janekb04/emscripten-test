@@ -90,7 +90,8 @@ public:
     }
 
     const auto [mouse_x, mouse_y] = wnd.getCursorPos();
-    const auto [mouse_dx, mouse_dy] = ImGui::GetMouseDragDelta();
+    const auto [mouse_dx, mouse_dy] =
+        ImGui::GetMouseDragDelta(ImGuiMouseButton_Left, 0);
     const auto [wnd_width, wnd_height] = wnd.getSize();
 
     // Potentially pick new current state
@@ -431,6 +432,7 @@ int main() {
           }
         }
 
+#ifndef __EMSCRIPTEN__
         {
           static bool freezeButtons = false;
 
@@ -478,12 +480,14 @@ int main() {
             LocalButtonWidth = ImGui::GetItemRectSize().x;
           }
         }
+#endif
 
         resizer->setMenuBarWindow(ImGui::GetCurrentWindowRead());
         ImGui::EndMainMenuBar();
       }
-
+#ifndef __EMSCRIPTEN__
       resizer->next();
+#endif
 
       ImGuiViewportP *viewport =
           (ImGuiViewportP *)(void *)ImGui::GetMainViewport();
