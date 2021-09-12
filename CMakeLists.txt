@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(emscripten-test)
 
-add_executable(main src/main.cpp)
+add_executable(main src/main.cpp src/ImGuiFileDialog.cpp)
 target_compile_features(main PRIVATE cxx_std_17)
 
 set(GLFWPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -24,7 +24,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     target_compile_definitions(main PRIVATE "__EMSCRIPTEN__")
 
     set(CMAKE_CXX_LINKER_WRAPPER_FLAG "")
-    target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main]")
+    target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main] --preload-file ${PROJECT_SOURCE_DIR}/res@res")
     add_custom_command(
         TARGET main POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy

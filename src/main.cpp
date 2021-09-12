@@ -22,6 +22,8 @@
 #include <imgui_internal.h>
 #include <iostream>
 
+#include "ImGuiFileDialog.h"
+
 void cleanupImgui() {
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();
@@ -320,13 +322,11 @@ int main(int argc, char **argv) {
 
   initImgui(wnd);
 
-#ifndef __EMSCRIPTEN__
   ImGuiIO &io = ImGui::GetIO();
   regularFont = io.Fonts->AddFontFromFileTTF(
       "./res/Inter-VariableFont_slnt,wght.ttf", 14);
   headerFont = io.Fonts->AddFontFromFileTTF(
       "./res/Inter-VariableFont_slnt,wght.ttf", 24);
-#endif
 
   setStyle();
   auto [r, g, b, a] = ImGui::GetStyleColorVec4(ImGuiCol_DockingEmptyBg);
@@ -528,6 +528,28 @@ int main(int argc, char **argv) {
         ImGui::SmallButton("W");
 
         ImGui::End();
+      }
+
+      {
+        // open Dialog Simple
+
+        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey",
+                                                "Choose File", ".*", ".");
+
+        // display
+        if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
+          // action if OK
+          if (ImGuiFileDialog::Instance()->IsOk()) {
+            std::string filePathName =
+                ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath =
+                ImGuiFileDialog::Instance()->GetCurrentPath();
+            // action
+          }
+
+          // close
+          ImGuiFileDialog::Instance()->Close();
+        }
       }
 
       ImGui::ShowDemoWindow();
