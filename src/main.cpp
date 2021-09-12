@@ -279,7 +279,12 @@ void setStyle() {
   style.TabRounding = 0;
 }
 
-int main() {
+int main(int argc, char **argv) {
+  // chdir to exe location
+  std::filesystem::current_path(
+      std::filesystem::weakly_canonical(std::filesystem::path(argv[0]))
+          .parent_path());
+
   [[maybe_unused]] glfw::GlfwLibrary library = glfw::init();
 
   glfw::WindowHints hints;
@@ -315,15 +320,13 @@ int main() {
 
   initImgui(wnd);
 
-  // #ifndef __EMSCRIPTEN__
-  //   ImGuiIO &io = ImGui::GetIO();
-  //   regularFont =
-  //       io.Fonts->AddFontFromFileTTF("res/Inter-VariableFont_slnt,wght.ttf",
-  //       14);
-  //   headerFont =
-  //       io.Fonts->AddFontFromFileTTF("res/Inter-VariableFont_slnt,wght.ttf",
-  //       24);
-  // #endif
+#ifndef __EMSCRIPTEN__
+  ImGuiIO &io = ImGui::GetIO();
+  regularFont = io.Fonts->AddFontFromFileTTF(
+      "./res/Inter-VariableFont_slnt,wght.ttf", 14);
+  headerFont = io.Fonts->AddFontFromFileTTF(
+      "./res/Inter-VariableFont_slnt,wght.ttf", 24);
+#endif
 
   setStyle();
   auto [r, g, b, a] = ImGui::GetStyleColorVec4(ImGuiCol_DockingEmptyBg);
