@@ -24,7 +24,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     target_compile_definitions(main PRIVATE "__EMSCRIPTEN__")
 
     set(CMAKE_CXX_LINKER_WRAPPER_FLAG "")
-    target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main] --preload-file ${PROJECT_SOURCE_DIR}/res@res")
+    target_link_options(main PRIVATE "LINKER:SHELL:-sEXPORTED_FUNCTIONS=[_malloc,_main] -s ALLOW_MEMORY_GROWTH=1 --preload-file ${PROJECT_SOURCE_DIR}/res@res")
     add_custom_command(
         TARGET main POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy

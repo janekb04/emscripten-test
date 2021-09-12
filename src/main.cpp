@@ -308,8 +308,10 @@ int main(int argc, char **argv) {
   hints.apply();
 
 #ifdef __EMSCRIPTEN__
-  const int WND_WIDTH = EM_ASM_INT({ return window.innerWidth; });
-  const int WND_HEIGHT = EM_ASM_INT({ return window.innerHeight; });
+  const int WND_WIDTH =
+      EM_ASM_INT({ return window.innerWidth * window.devicePixelRatio; });
+  const int WND_HEIGHT =
+      EM_ASM_INT({ return window.innerHeight * window.devicePixelRatio; });
 #else
   const int WND_WIDTH = 800;
   const int WND_HEIGHT = 600;
@@ -330,13 +332,18 @@ int main(int argc, char **argv) {
 
   initImgui(wnd);
 
+#ifndef __EMSCRIPTEN__
   setDPI(std::get<0>(wnd.getContentScale()));
 
   wnd.contentScaleEvent.setCallback(
       [](const glfw::Window &, float dpi, float) { setDPI(dpi); });
+#else
+  setDPI(EM_ASM_DOUBLE({ return window.devicePixelRatio; }));
+#endif
 
   auto [r, g, b, a] = ImGui::GetStyleColorVec4(ImGuiCol_DockingEmptyBg);
   glClearColor(r, g, b, a);
+
 #ifdef _WIN32
   acrylic_swca(glfw::native::getWin32Window(wnd));
 #endif
@@ -396,8 +403,6 @@ int main(int argc, char **argv) {
               if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
                 data->Buf[0] ^= 32;
               data->BufDirty = true;
-
-              // Increment a counter
               int *p_int = (int *)data->UserData;
               *p_int = *p_int + 1;
             }
@@ -454,7 +459,7 @@ int main(int argc, char **argv) {
             static float HostButtonWidth = 100.0f;
             float pos = HostButtonWidth + ItemSpacing + 5;
             // ImGui::PushStyleColor(ImGuiColactive_)
-            ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+            ImGui::SameLine(I mGui::GetWindowWidth() - pos);
             if (ImGui::BeginMenu("X")) {
               ImGui::EndMenu();
               mainWindow->setShouldClose(true);
