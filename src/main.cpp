@@ -208,6 +208,7 @@ void render() {
   renderImgui([]() {
     ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(),
                                  ImGuiDockNodeFlags_PassthruCentralNode);
+
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {
         ImGui::MenuItem("New", "Ctrl + N");
@@ -419,7 +420,35 @@ void render() {
 }
 
 void setStyle(float dpi) {
-  ImVec4 *colors = ImGui::GetStyle().Colors;
+  ImGuiStyle &style = ImGui::GetStyle();
+  style = ImGuiStyle{};
+
+  style.WindowPadding = ImVec2(8.00f, 8.00f);
+  style.FramePadding = ImVec2(5.00f, 2.00f);
+  style.CellPadding = ImVec2(6.00f, 6.00f);
+  style.ItemSpacing = ImVec2(6.00f, 6.00f);
+  style.ItemInnerSpacing = ImVec2(6.00f, 6.00f);
+  style.TouchExtraPadding = ImVec2(0.00f, 0.00f);
+  style.IndentSpacing = 25;
+  style.ScrollbarSize = 15;
+  style.GrabMinSize = 10;
+  style.WindowBorderSize = 1;
+  style.ChildBorderSize = 1;
+  style.PopupBorderSize = 1;
+  style.FrameBorderSize = 1;
+  style.TabBorderSize = 1;
+  style.WindowRounding = 0;
+  style.ChildRounding = 0;
+  style.FrameRounding = 0;
+  style.PopupRounding = 0;
+  style.ScrollbarRounding = 0;
+  style.GrabRounding = 0;
+  style.LogSliderDeadzone = 0;
+  style.TabRounding = 0;
+
+  style.ScaleAllSizes(dpi);
+
+  ImVec4 *colors = style.Colors;
   colors[ImGuiCol_Text] = ImVec4(0.78f, 0.80f, 0.81f, 1.00f);
   colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
   colors[ImGuiCol_WindowBg] = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
@@ -475,34 +504,8 @@ void setStyle(float dpi) {
   colors[ImGuiCol_NavWindowingHighlight] = ImVec4(0.33f, 0.67f, 0.86f, 1.00f);
   colors[ImGuiCol_NavWindowingDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.20f);
   colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
-
-  ImGuiStyle &style = ImGui::GetStyle();
-  style.WindowPadding = ImVec2(8.00f, 8.00f);
-  style.FramePadding = ImVec2(5.00f, 2.00f);
-  style.CellPadding = ImVec2(6.00f, 6.00f);
-  style.ItemSpacing = ImVec2(6.00f, 6.00f);
-  style.ItemInnerSpacing = ImVec2(6.00f, 6.00f);
-  style.TouchExtraPadding = ImVec2(0.00f, 0.00f);
-  style.IndentSpacing = 25;
-  style.ScrollbarSize = 15;
-  style.GrabMinSize = 10;
-  style.WindowBorderSize = 1;
-  style.ChildBorderSize = 1;
-  style.PopupBorderSize = 1;
-  style.FrameBorderSize = 1;
-  style.TabBorderSize = 1;
-  style.WindowRounding = 0;
-  style.ChildRounding = 0;
-  style.FrameRounding = 0;
-  style.PopupRounding = 0;
-  style.ScrollbarRounding = 0;
-  style.GrabRounding = 0;
-  style.LogSliderDeadzone = 0;
-  style.TabRounding = 0;
-
-  style.ScaleAllSizes(dpi);
 }
-void setDPI(float dpi) {
+extern "C" void setDPI(float dpi) {
   auto &&io = ImGui::GetIO();
   io.Fonts->Clear();
   io.Fonts->AddFontFromFileTTF("./res/Inter-VariableFont_slnt,wght.ttf",
