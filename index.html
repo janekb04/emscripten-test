@@ -63,9 +63,19 @@
             Module.printErr("window error: " + event)
         };
         window.addEventListener("resize", function (e) {
+            if (this.lastDevicePixelRatio === undefined) {
+                this.lastDevicePixelRatio = window.devicePixelRatio;
+            }
+
             Module.setCanvasSize(window.innerWidth * window.devicePixelRatio, window.innerHeight * window.devicePixelRatio);
             document.getElementById('canvas').style.width = window.innerWidth * window.devicePixelRatio;
             document.getElementById('canvas').style.height = window.innerHeight * window.devicePixelRatio;
+
+            if (window.devicePixelRatio != this.lastDevicePixelRatio) {
+                document.getElementById('canvas').style.transform = "scale(" + 1 / window.devicePixelRatio + ")";
+                this.lastDevicePixelRatio = window.devicePixelRatio;
+                Module.ccall("setDPI", null, ["number"], [window.devicePixelRatio]);
+            }
         }, true);
     </script>
     <script type='text/javascript'>
