@@ -123,7 +123,8 @@ public:
 
       // When dragging...
       if (state == 0 && wnd.getMouseButton(glfw::MouseButton::Left)) {
-        const bool on_title_bar = dst_to_top_edge < TITLE_BAR_SIZE;
+        const bool on_title_bar =
+            ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow;
         const bool in_drag_location =
             !ImGui::GetIO().WantCaptureMouse || on_title_bar;
         if (in_drag_location && ImGui::IsMouseDragging(0)) {
@@ -147,6 +148,12 @@ public:
           }
         }
       }
+    } else if (ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow &&
+               wnd.getAttribMaximized() && ImGui::IsMouseDragging(0)) {
+      wnd.restore();
+      auto [wnd_width, wnd_height] = wnd.getSize();
+      wnd.setPos(mouse_x - wnd_width / 2, mouse_y - 10);
+      state = OP_MOVE;
     }
 
     const auto [wnd_x, wnd_y] = wnd.getPos();
@@ -195,6 +202,221 @@ public:
 
 WindowResizer *resizer;
 glfw::Window *mainWindow;
+
+void render() {
+  glClear(GL_COLOR_BUFFER_BIT);
+  renderImgui([]() {
+    ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(),
+                                 ImGuiDockNodeFlags_PassthruCentralNode);
+    if (ImGui::BeginMainMenuBar()) {
+      if (ImGui::BeginMenu("File")) {
+        ImGui::MenuItem("New", "Ctrl + N");
+        ImGui::MenuItem("Open", "Ctrl + O");
+        ImGui::MenuItem("Save", "Ctrl + S");
+        ImGui::MenuItem("Save As", "Ctrl + Shift + S");
+        ImGui::Separator();
+        ImGui::MenuItem("Exit", "Ctrl + Q");
+        ImGui::EndMenu();
+      }
+      if (ImGui::BeginMenu("Edit")) {
+        ImGui::MenuItem("Undo", "Ctrl + Z");
+        ImGui::MenuItem("Redo", "Ctrl + Y");
+        ImGui::Separator();
+        ImGui::MenuItem("Cut", "Ctrl + X");
+        ImGui::MenuItem("Copy", "Ctrl + C");
+        ImGui::MenuItem("Paste", "Ctrl + V");
+        ImGui::EndMenu();
+      }
+
+      {
+        struct options_t {
+          int select_idx = 0;
+          std::array<const char *, 4> optionList = {"Hello", "World", "Test",
+                                                    "Hi"};
+        };
+        static options_t options;
+        static char currentText[255];
+
+        auto inputCallback = [](ImGuiInputTextCallbackData *data) {
+          options_t &options = *reinterpret_cast<options_t *>(data->UserData);
+          if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion) {
+            data->InsertChars(
+                data->CursorPos,
+                std::data(options.optionList)[options.select_idx]);
+            data->InsertChars(data->CursorPos, " ");
+          } else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
+            if (data->EventKey == ImGuiKey_UpArrow) {
+              --options.select_idx;
+            } else if (data->EventKey == ImGuiKey_DownArrow) {
+              ++options.select_idx;
+            }
+            options.select_idx += options.optionList.size();
+            options.select_idx %= options.optionList.size();
+          } else if (data->EventFlag == ImGuiInputTextFlags_CallbackEdit) {
+            // Toggle casing of first character
+            char c = data->Buf[0];
+            if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
+              data->Buf[0] ^= 32;
+            data->BufDirty = true;
+            int *p_int = (int *)data->UserData;
+            *p_int = *p_int + 1;
+          }
+          return 0;
+        };
+
+        ImGui::InputTextWithHint("##searchText", "Run command...",
+                                 &currentText[0], 255,
+                                 ImGuiInputTextFlags_CallbackCompletion |
+                                     ImGuiInputTextFlags_CallbackHistory,
+                                 inputCallback, &options);
+
+        auto textInputState = ImGui::GetInputTextState(ImGui::GetItemID());
+        ImVec2 textPos{ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y};
+
+        static bool popup_focused_last_frame = false;
+        if (ImGui::IsItemActive() || popup_focused_last_frame) {
+          popup_focused_last_frame = false;
+          ImGui::OpenPopup("##SearchBar");
+
+          ImGui::SetNextWindowPos(
+              ImVec2{ImGui::GetCurrentContext()->PlatformImePos.x,
+                     ImGui::GetItemRectMax().y},
+              ImGuiCond_Always);
+
+          if (ImGui::BeginPopup("##SearchBar",
+                                ImGuiWindowFlags_ChildWindow |
+                                    ImGuiWindowFlags_NoNavInputs)) {
+            int i = 0;
+            ImGui::PushAllowKeyboardFocus(false);
+            for (auto &&option : options.optionList) {
+              if (ImGui::Selectable(option, options.select_idx == i,
+                                    ImGuiSelectableFlags_DontClosePopups)) {
+              }
+
+              ++i;
+            }
+            ImGui::PopAllowKeyboardFocus();
+          }
+
+          ImGui::EndPopup();
+        }
+      }
+
+#ifndef __EMSCRIPTEN__
+      {
+        static bool freezeButtons = false;
+
+        if (freezeButtons) {
+          freezeButtons = false;
+        } else {
+          const float ItemSpacing = 0;
+
+          static float HostButtonWidth = 100.0f;
+          float pos = HostButtonWidth + ItemSpacing + 5;
+          // ImGui::PushStyleColor(ImGuiColactive_)
+          ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+          if (ImGui::BeginMenu("X")) {
+            ImGui::EndMenu();
+            mainWindow->setShouldClose(true);
+            freezeButtons = true;
+          }
+          HostButtonWidth = ImGui::GetItemRectSize().x;
+
+          static float ClientButtonWidth = 100.0f;
+          pos += ClientButtonWidth + ItemSpacing;
+          ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+          if (ImGui::BeginMenu("[  ]")) {
+            ImGui::EndMenu();
+            static bool maximized = false;
+            if (maximized) {
+              mainWindow->restore();
+              maximized = false;
+            } else {
+              mainWindow->maximize();
+              maximized = true;
+            }
+            freezeButtons = true;
+          }
+          ClientButtonWidth = ImGui::GetItemRectSize().x;
+
+          static float LocalButtonWidth = 100.0f;
+          pos += LocalButtonWidth + ItemSpacing;
+          ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+          if (ImGui::BeginMenu("-")) {
+            ImGui::EndMenu();
+            mainWindow->iconify();
+            freezeButtons = true;
+          }
+          LocalButtonWidth = ImGui::GetItemRectSize().x;
+        }
+      }
+#endif
+
+      resizer->setMenuBarWindow(ImGui::GetCurrentWindowRead());
+      ImGui::EndMainMenuBar();
+    }
+
+    ImGuiViewportP *viewport =
+        (ImGuiViewportP *)(void *)ImGui::GetMainViewport();
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar |
+                                    ImGuiWindowFlags_NoSavedSettings |
+                                    ImGuiWindowFlags_MenuBar;
+    float height = ImGui::GetFrameHeight();
+
+    if (ImGui::BeginViewportSideBar("##SecondaryMenuBar", viewport, ImGuiDir_Up,
+                                    height, window_flags)) {
+      if (ImGui::BeginMenuBar()) {
+        ImGui::Text("0 Errors; 0 Warnings; 0 Messages;");
+        ImGui::EndMenuBar();
+      }
+      ImGui::End();
+    }
+
+    if (ImGui::BeginViewportSideBar("##MainStatusBar", viewport, ImGuiDir_Down,
+                                    height, window_flags)) {
+      if (ImGui::BeginMenuBar()) {
+        ImGui::Text("Status: all green");
+        ImGui::EndMenuBar();
+      }
+      ImGui::End();
+    }
+
+    if (ImGui::BeginViewportSideBar("##LeftSidebar", viewport, ImGuiDir_Left,
+                                    35,
+                                    window_flags ^ ImGuiWindowFlags_MenuBar)) {
+      ImGui::SetCursorPosY(ImGui::GetWindowSize().y / 2);
+      ImGui::SmallButton("X");
+      ImGui::SmallButton("Y");
+      ImGui::SmallButton("Z");
+      ImGui::SmallButton("W");
+
+      ImGui::End();
+    }
+
+    {
+      // open Dialog Simple
+
+      ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File",
+                                              ".*", ".");
+
+      // display
+      if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
+        // action if OK
+        if (ImGuiFileDialog::Instance()->IsOk()) {
+          std::string filePathName =
+              ImGuiFileDialog::Instance()->GetFilePathName();
+          std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+          // action
+        }
+
+        // close
+        ImGuiFileDialog::Instance()->Close();
+      }
+    }
+
+    ImGui::ShowDemoWindow();
+  });
+}
 
 void setStyle(float dpi) {
   ImVec4 *colors = ImGui::GetStyle().Colors;
@@ -349,226 +571,20 @@ int main(int argc, char **argv) {
 #endif
 
   auto mainLoop = []() {
-    renderImgui([]() {
-      glClear(GL_COLOR_BUFFER_BIT);
-      ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(),
-                                   ImGuiDockNodeFlags_PassthruCentralNode);
-      if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("File")) {
-          ImGui::MenuItem("New", "Ctrl + N");
-          ImGui::MenuItem("Open", "Ctrl + O");
-          ImGui::MenuItem("Save", "Ctrl + S");
-          ImGui::MenuItem("Save As", "Ctrl + Shift + S");
-          ImGui::Separator();
-          ImGui::MenuItem("Exit", "Ctrl + Q");
-          ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("Edit")) {
-          ImGui::MenuItem("Undo", "Ctrl + Z");
-          ImGui::MenuItem("Redo", "Ctrl + Y");
-          ImGui::Separator();
-          ImGui::MenuItem("Cut", "Ctrl + X");
-          ImGui::MenuItem("Copy", "Ctrl + C");
-          ImGui::MenuItem("Paste", "Ctrl + V");
-          ImGui::EndMenu();
-        }
-
-        {
-          struct options_t {
-            int select_idx = 0;
-            std::array<const char *, 4> optionList = {"Hello", "World", "Test",
-                                                      "Hi"};
-          };
-          static options_t options;
-          static char currentText[255];
-
-          auto inputCallback = [](ImGuiInputTextCallbackData *data) {
-            options_t &options = *reinterpret_cast<options_t *>(data->UserData);
-            if (data->EventFlag == ImGuiInputTextFlags_CallbackCompletion) {
-              data->InsertChars(
-                  data->CursorPos,
-                  std::data(options.optionList)[options.select_idx]);
-              data->InsertChars(data->CursorPos, " ");
-            } else if (data->EventFlag == ImGuiInputTextFlags_CallbackHistory) {
-              if (data->EventKey == ImGuiKey_UpArrow) {
-                --options.select_idx;
-              } else if (data->EventKey == ImGuiKey_DownArrow) {
-                ++options.select_idx;
-              }
-              options.select_idx += options.optionList.size();
-              options.select_idx %= options.optionList.size();
-            } else if (data->EventFlag == ImGuiInputTextFlags_CallbackEdit) {
-              // Toggle casing of first character
-              char c = data->Buf[0];
-              if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z'))
-                data->Buf[0] ^= 32;
-              data->BufDirty = true;
-              int *p_int = (int *)data->UserData;
-              *p_int = *p_int + 1;
-            }
-            return 0;
-          };
-
-          ImGui::InputTextWithHint("##searchText", "Run command...",
-                                   &currentText[0], 255,
-                                   ImGuiInputTextFlags_CallbackCompletion |
-                                       ImGuiInputTextFlags_CallbackHistory,
-                                   inputCallback, &options);
-
-          auto textInputState = ImGui::GetInputTextState(ImGui::GetItemID());
-          ImVec2 textPos{ImGui::GetItemRectMin().x, ImGui::GetItemRectMax().y};
-
-          static bool popup_focused_last_frame = false;
-          if (ImGui::IsItemActive() || popup_focused_last_frame) {
-            popup_focused_last_frame = false;
-            ImGui::OpenPopup("##SearchBar");
-
-            ImGui::SetNextWindowPos(
-                ImVec2{ImGui::GetCurrentContext()->PlatformImePos.x,
-                       ImGui::GetItemRectMax().y},
-                ImGuiCond_Always);
-
-            if (ImGui::BeginPopup("##SearchBar",
-                                  ImGuiWindowFlags_ChildWindow |
-                                      ImGuiWindowFlags_NoNavInputs)) {
-              int i = 0;
-              ImGui::PushAllowKeyboardFocus(false);
-              for (auto &&option : options.optionList) {
-                if (ImGui::Selectable(option, options.select_idx == i,
-                                      ImGuiSelectableFlags_DontClosePopups)) {
-                }
-
-                ++i;
-              }
-              ImGui::PopAllowKeyboardFocus();
-            }
-
-            ImGui::EndPopup();
-          }
-        }
-
-#ifndef __EMSCRIPTEN__
-        {
-          static bool freezeButtons = false;
-
-          if (freezeButtons) {
-            freezeButtons = false;
-          } else {
-            const float ItemSpacing = 0;
-
-            static float HostButtonWidth = 100.0f;
-            float pos = HostButtonWidth + ItemSpacing + 5;
-            // ImGui::PushStyleColor(ImGuiColactive_)
-            ImGui::SameLine(I mGui::GetWindowWidth() - pos);
-            if (ImGui::BeginMenu("X")) {
-              ImGui::EndMenu();
-              mainWindow->setShouldClose(true);
-              freezeButtons = true;
-            }
-            HostButtonWidth = ImGui::GetItemRectSize().x;
-
-            static float ClientButtonWidth = 100.0f;
-            pos += ClientButtonWidth + ItemSpacing;
-            ImGui::SameLine(ImGui::GetWindowWidth() - pos);
-            if (ImGui::BeginMenu("[  ]")) {
-              ImGui::EndMenu();
-              static bool maximized = false;
-              if (maximized) {
-                mainWindow->restore();
-                maximized = false;
-              } else {
-                mainWindow->maximize();
-                maximized = true;
-              }
-              freezeButtons = true;
-            }
-            ClientButtonWidth = ImGui::GetItemRectSize().x;
-
-            static float LocalButtonWidth = 100.0f;
-            pos += LocalButtonWidth + ItemSpacing;
-            ImGui::SameLine(ImGui::GetWindowWidth() - pos);
-            if (ImGui::BeginMenu("-")) {
-              ImGui::EndMenu();
-              mainWindow->iconify();
-              freezeButtons = true;
-            }
-            LocalButtonWidth = ImGui::GetItemRectSize().x;
-          }
-        }
-#endif
-
-        resizer->setMenuBarWindow(ImGui::GetCurrentWindowRead());
-        ImGui::EndMainMenuBar();
-      }
-#ifndef __EMSCRIPTEN__
-      resizer->next();
-#endif
-
-      ImGuiViewportP *viewport =
-          (ImGuiViewportP *)(void *)ImGui::GetMainViewport();
-      ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar |
-                                      ImGuiWindowFlags_NoSavedSettings |
-                                      ImGuiWindowFlags_MenuBar;
-      float height = ImGui::GetFrameHeight();
-
-      if (ImGui::BeginViewportSideBar("##SecondaryMenuBar", viewport,
-                                      ImGuiDir_Up, height, window_flags)) {
-        if (ImGui::BeginMenuBar()) {
-          ImGui::Text("0 Errors; 0 Warnings; 0 Messages;");
-          ImGui::EndMenuBar();
-        }
-        ImGui::End();
-      }
-
-      if (ImGui::BeginViewportSideBar("##MainStatusBar", viewport,
-                                      ImGuiDir_Down, height, window_flags)) {
-        if (ImGui::BeginMenuBar()) {
-          ImGui::Text("Status: all green");
-          ImGui::EndMenuBar();
-        }
-        ImGui::End();
-      }
-
-      if (ImGui::BeginViewportSideBar(
-              "##LeftSidebar", viewport, ImGuiDir_Left, 35,
-              window_flags ^ ImGuiWindowFlags_MenuBar)) {
-        ImGui::SetCursorPosY(ImGui::GetWindowSize().y / 2);
-        ImGui::SmallButton("X");
-        ImGui::SmallButton("Y");
-        ImGui::SmallButton("Z");
-        ImGui::SmallButton("W");
-
-        ImGui::End();
-      }
-
-      {
-        // open Dialog Simple
-
-        ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey",
-                                                "Choose File", ".*", ".");
-
-        // display
-        if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey")) {
-          // action if OK
-          if (ImGuiFileDialog::Instance()->IsOk()) {
-            std::string filePathName =
-                ImGuiFileDialog::Instance()->GetFilePathName();
-            std::string filePath =
-                ImGuiFileDialog::Instance()->GetCurrentPath();
-            // action
-          }
-
-          // close
-          ImGuiFileDialog::Instance()->Close();
-        }
-      }
-
-      ImGui::ShowDemoWindow();
-    });
+    render();
 
     glfw::pollEvents();
     mainWindow->swapBuffers();
+#ifndef __EMSCRIPTEN__
+    resizer->next();
+#endif
   };
+
+  wnd.framebufferSizeEvent.setCallback(
+      [&](const glfw::Window &wnd, int width, int height) {
+        glViewport(0, 0, width, height);
+        // render();
+      });
 
 #ifndef __EMSCRIPTEN__
   while (!wnd.shouldClose()) {
