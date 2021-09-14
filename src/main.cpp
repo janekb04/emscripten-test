@@ -524,8 +524,8 @@ int main(int argc, char **argv) {
 
   glfw::WindowHints hints;
   hints.clientApi = glfw::ClientApi::OpenGl;
-  hints.contextVersionMajor = 4;
-  hints.contextVersionMinor = 6;
+  hints.contextVersionMajor = 3;
+  hints.contextVersionMinor = 3;
 #if !defined(__EMSCRIPTEN__) && defined(_WIN32)
   hints.transparentFramebuffer = true;
   hints.decorated = false;
