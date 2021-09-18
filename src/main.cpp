@@ -81,9 +81,14 @@ public:
   WindowResizer(glfw::Window &wnd) : state{0}, wnd{wnd} {}
 
   void next() {
+    if (!wnd.getAttribFocused())
+      return;
+
     // Stop any op if no longer holding mouse
     if (!wnd.getMouseButton(glfw::MouseButton::Left)) {
       if (state == OP_MOVE) {
+        if (ImGui::GetMousePos().y == 0)
+          wnd.maximize();
         state = 0;
       } else if (state != 0) { // resizing in some way
         state = 0;
@@ -152,7 +157,7 @@ public:
                wnd.getAttribMaximized() && ImGui::IsMouseDragging(0)) {
       wnd.restore();
       auto [wnd_width, wnd_height] = wnd.getSize();
-      wnd.setPos(mouse_x - wnd_width / 2, mouse_y - 10);
+      wnd.setPos(mouse_x - wnd_width / 2, 0);
       state = OP_MOVE;
     }
 
@@ -209,6 +214,8 @@ void render() {
     ImGui::DockSpaceOverViewport(ImGui::GetMainViewport(),
                                  ImGuiDockNodeFlags_PassthruCentralNode);
 
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {9, 9});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {9, 2 * 9});
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("File")) {
         ImGui::MenuItem("New", "Ctrl + N");
@@ -316,11 +323,16 @@ void render() {
           float pos = HostButtonWidth + ItemSpacing + 5;
           // ImGui::PushStyleColor(ImGuiColactive_)
           ImGui::SameLine(ImGui::GetWindowWidth() - pos);
+
+          const ImVec4 closeButtonColor{0.84, 0.08, 0.15, 1.0};
+          ImGui::PushStyleColor(ImGuiCol_HeaderHovered, closeButtonColor);
+          ImGui::PushStyleColor(ImGuiCol_HeaderActive, closeButtonColor);
           if (ImGui::BeginMenu("X")) {
             ImGui::EndMenu();
             mainWindow->setShouldClose(true);
             freezeButtons = true;
           }
+          ImGui::PopStyleColor(2);
           HostButtonWidth = ImGui::GetItemRectSize().x;
 
           static float ClientButtonWidth = 100.0f;
@@ -356,6 +368,7 @@ void render() {
       resizer->setMenuBarWindow(ImGui::GetCurrentWindowRead());
       ImGui::EndMainMenuBar();
     }
+    ImGui::PopStyleVar(2);
 
     ImGuiViewportP *viewport =
         (ImGuiViewportP *)(void *)ImGui::GetMainViewport();
