@@ -7,7 +7,8 @@ target_compile_features(main PRIVATE cxx_std_17)
 set(GLFWPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 add_subdirectory(external/glfwpp)
 add_subdirectory(external/imgui)
-target_link_libraries(main PRIVATE GLFWPP Imgui)
+add_subdirectory(external/freetype)
+target_link_libraries(main PRIVATE GLFWPP Imgui freetype)
 
 file(GLOB_RECURSE RESOURCE_FILES ${PROJECT_SOURCE_DIR}/res/*)
 add_custom_command(
