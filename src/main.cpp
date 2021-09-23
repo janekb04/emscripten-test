@@ -68,16 +68,15 @@ void initImgui(const glfw::Window &wnd) {
 using wgl_swap_interval_ext_t = bool (*)(int);
 
 class WindowResizer {
-  const int OP_RESIZE_LEFT = 1, OP_RESIZE_TOP = 2, OP_RESIZE_RIGHT = 4,
-            OP_RESIZE_BOTTOM = 8, OP_MOVE = 16;
+  constexpr static int OP_RESIZE_LEFT = 1, OP_RESIZE_TOP = 2,
+                       OP_RESIZE_RIGHT = 4, OP_RESIZE_BOTTOM = 8, OP_MOVE = 16;
   int state;
   glfw::Window &wnd;
   const ImGuiWindow *menuBarWindow;
 
-  const int TITLE_BAR_SIZE = 15;
-  const int BORDER_WIDTH = 5;
-  const int MIN_HEIGHT = 20;
-  const int MIN_WIDTH = 20;
+  constexpr static int BORDER_WIDTH = 5;
+  constexpr static int MIN_HEIGHT = 20;
+  constexpr static int MIN_WIDTH = 20;
 
 public:
   WindowResizer(glfw::Window &wnd) : state{0}, wnd{wnd} {}
@@ -108,6 +107,8 @@ public:
         ImGui::GetMouseDragDelta(ImGuiMouseButton_Left, 0);
     const auto [wnd_width, wnd_height] = wnd.getSize();
 
+    int cursor_state = state;
+
     // Potentially pick new current state
     if ((!ImGui::IsAnyItemActive() ||
          ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow) &&
@@ -120,16 +121,16 @@ public:
       // When Hovering...
       if (state == 0) {
         if (dst_to_left_edge < BORDER_WIDTH) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+          cursor_state |= OP_RESIZE_LEFT;
         }
         if (dst_to_right_edge < BORDER_WIDTH) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+          cursor_state |= OP_RESIZE_RIGHT;
         }
         if (dst_to_bottom_edge < BORDER_WIDTH) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+          cursor_state |= OP_RESIZE_BOTTOM;
         }
         if (dst_to_top_edge < BORDER_WIDTH) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+          cursor_state |= OP_RESIZE_TOP;
         }
       }
 
@@ -159,6 +160,7 @@ public:
         if (state & (OP_MOVE | OP_RESIZE_RIGHT | OP_RESIZE_BOTTOM)) {
           wglSwapIntervalEXT(0);
         }
+        cursor_state = state;
       }
     } else if (ImGui::GetCurrentContext()->ActiveIdWindow == menuBarWindow &&
                wnd.getAttribMaximized() && ImGui::IsMouseDragging(0)) {
@@ -176,36 +178,51 @@ public:
         auto [x, y] = wnd.getPos();
         wnd.setPos(x + mouse_dx, y + mouse_dy);
       } else {
+        // Calc new window rect
+        auto new_width = wnd_width, new_height = wnd_height;
+        auto new_x = wnd_x, new_y = wnd_y;
         if (state & OP_RESIZE_BOTTOM) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-          const auto new_height = wnd_height + mouse_dy;
-          if (new_height >= MIN_HEIGHT)
-            wnd.setSize(wnd_width, new_height);
+          new_height += mouse_dy;
+        } else if (state & OP_RESIZE_TOP) {
+          new_height -= mouse_dy;
+          new_y += mouse_dy;
         }
         if (state & OP_RESIZE_RIGHT) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-          const auto new_width = wnd_width + mouse_dx;
-          if (new_width >= MIN_WIDTH)
-            wnd.setSize(new_width, wnd_height);
+          new_width += mouse_dx;
+        } else if (state & OP_RESIZE_LEFT) {
+          new_width -= mouse_dx;
+          new_x += mouse_dx;
         }
-        if (state & OP_RESIZE_TOP) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-          const auto new_height = wnd_height - mouse_dy;
-          if (new_height >= MIN_HEIGHT) {
-            wnd.setPos(wnd_x, wnd_y + mouse_dy);
-            wnd.setSize(wnd_width, new_height);
-          }
+        // Apply new window rect
+        if (new_x != wnd_x || new_y != wnd_y) {
+          wnd.setPos(new_x, new_y);
         }
-        if (state & OP_RESIZE_LEFT) {
-          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-          const auto new_width = wnd_width - mouse_dx;
-          if (new_width >= MIN_WIDTH) {
-            wnd.setPos(wnd_x + mouse_dx, wnd_y);
-            wnd.setSize(new_width, wnd_height);
-          }
+        if (new_width != wnd_width || new_height != wnd_height) {
+          wnd.setSize(new_width, new_height);
         }
       }
     }
+
+    // Set proper mouse cursor
+    switch (cursor_state) {
+    case OP_RESIZE_BOTTOM:
+    case OP_RESIZE_TOP:
+      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+      break;
+    case OP_RESIZE_LEFT:
+    case OP_RESIZE_RIGHT:
+      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+      break;
+    case OP_RESIZE_BOTTOM | OP_RESIZE_LEFT:
+    case OP_RESIZE_TOP | OP_RESIZE_RIGHT:
+      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+      break;
+    case OP_RESIZE_BOTTOM | OP_RESIZE_RIGHT:
+    case OP_RESIZE_TOP | OP_RESIZE_LEFT:
+      ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+      break;
+      // default: unreachable;
+    };
 
     auto [width, height] = wnd.getFramebufferSize();
     glViewport(0, 0, width, height);
